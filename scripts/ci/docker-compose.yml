@@ -62,7 +62,7 @@ services:
     domainname: example.com
 
   airflow-testing:
-    image: airflowci/incubator-airflow-ci:latest
+    image: gerardo/incubator-airflow-ci:${PYTHON_VERSION}
     init: true
     environment:
       - USER=airflow
