@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 #
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -26,9 +25,6 @@ AIRFLOW_ROOT="$DIRNAME/../.."
 nose_args=$@
 # Fix file permissions
 sudo chown -R airflow.airflow . $HOME/.cache $HOME/.wheelhouse/ $HOME/.cache/pip
-if [ -d $HOME/.minikube ]; then
-    sudo chown -R airflow.airflow $HOME/.kube $HOME/.minikube
-fi
 
 sudo -H pip3 install --upgrade pip
 sudo -H pip3 install tox
@@ -39,22 +35,24 @@ if [ -z "$KUBERNETES_VERSION" ];
 then
   tox -e $TOX_ENV $nose_args
 else
-  # This script runs inside a container, the path of the kubernetes certificate
-  # is /home/travis/.minikube/client.crt but the user in the container is `airflow`
   if [ ! -d /home/travis ]; then
     sudo mkdir -p /home/travis
   fi
-  sudo ln -s /home/airflow/.minikube /home/travis/.minikube
+  NOSE_ARGS=("--with-coverage"
+            "--cover-erase"
+            "--cover-html"
+            "--cover-package=airflow"
+            "--cover-html-dir=airflow/www/static/coverage"
+            "--with-ignore-docstrings"
+            "--rednose"
+            "--with-timer"
+            "-v"
+            "--logging-level=INFO")
 
-  tox -e $TOX_ENV -- tests.minikube \
-                     --with-coverage \
-                     --cover-erase \
-                     --cover-html \
-                     --cover-package=airflow \
-                     --cover-html-dir=airflow/www/static/coverage \
-                     --with-ignore-docstrings \
-                     --rednose \
-                     --with-timer \
-                     -v \
-                     --logging-level=DEBUG
+  ./scripts/ci/kubernetes/setup_kubernetes.sh
+  ./scripts/ci/kubernetes/deploy_app.sh -d persistent_mode
+  tox -e "$TOX_ENV" -- tests.integration.kubernetes "${NOSE_ARGS[@]}"
+
+  ./scripts/ci/kubernetes/deploy_app.sh -d git_mode
+  tox -e "$TOX_ENV" -- tests.integration.kubernetes "${NOSE_ARGS[@]}"
 fi

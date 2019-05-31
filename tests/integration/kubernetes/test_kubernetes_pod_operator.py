@@ -37,7 +37,7 @@ except Exception as e:
         raise e
     else:
         raise unittest.SkipTest(
-            "Kubernetes integration tests require a minikube cluster;"
+            "Kubernetes integration tests require a Kubernetes cluster;"
             "Skipping tests {}".format(e)
         )
 

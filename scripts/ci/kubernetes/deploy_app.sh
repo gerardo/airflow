@@ -22,8 +22,8 @@ set -x
 AIRFLOW_IMAGE=${IMAGE:-airflow}
 AIRFLOW_TAG=${TAG:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
-TEMPLATE_DIRNAME=${DIRNAME}/templates
-BUILD_DIRNAME=${DIRNAME}/build
+TEMPLATE_DIRNAME=${DIRNAME}/app/
+BUILD_DIRNAME=${DIRNAME}/app/build
 
 usage() {
     cat << EOF
@@ -63,7 +63,7 @@ case ${DAGS_VOLUME} in
 esac
 
 if [ ! -d "$BUILD_DIRNAME" ]; then
-  mkdir -p ${BUILD_DIRNAME}
+  mkdir -p "${BUILD_DIRNAME}"
 fi
 
 rm -f ${BUILD_DIRNAME}/*
@@ -95,11 +95,11 @@ echo "Local OS is ${_MY_OS}"
 
 case $_MY_OS in
   linux)
-    SED_COMMAND=sed
+    SED_COMMAND="sed"
   ;;
   darwin)
     SED_COMMAND=gsed
-    if ! $(type "$SED_COMMAND" &> /dev/null) ; then
+    if ! type "$SED_COMMAND" &> /dev/null ; then
       echo "Could not find \"$SED_COMMAND\" binary, please install it. On OSX brew install gnu-sed" >&2
       exit 1
     fi
@@ -132,25 +132,19 @@ ${SED_COMMAND} -i "s|{{CONFIGMAP_BRANCH}}|$CONFIGMAP_BRANCH|g" ${BUILD_DIRNAME}/
 ${SED_COMMAND} -i "s|{{CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT}}|$CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT|g" ${BUILD_DIRNAME}/configmaps.yaml
 ${SED_COMMAND} -i "s|{{CONFIGMAP_DAGS_VOLUME_CLAIM}}|$CONFIGMAP_DAGS_VOLUME_CLAIM|g" ${BUILD_DIRNAME}/configmaps.yaml
 
-
 cat ${BUILD_DIRNAME}/airflow.yaml
 cat ${BUILD_DIRNAME}/configmaps.yaml
 
-# Fix file permissions
-if [[ "${TRAVIS}" == true ]]; then
-  sudo chown -R travis.travis $HOME/.kube $HOME/.minikube
-fi
-
 kubectl delete -f $DIRNAME/postgres.yaml
 kubectl delete -f $BUILD_DIRNAME/airflow.yaml
-kubectl delete -f $DIRNAME/secrets.yaml
+kubectl delete -f $TEMPLATE_DIRNAME/secrets.yaml
 
 set -e
 
-kubectl apply -f $DIRNAME/secrets.yaml
+kubectl apply -f $TEMPLATE_DIRNAME/secrets.yaml
 kubectl apply -f $BUILD_DIRNAME/configmaps.yaml
-kubectl apply -f $DIRNAME/postgres.yaml
-kubectl apply -f $DIRNAME/volumes.yaml
+kubectl apply -f $TEMPLATE_DIRNAME/postgres.yaml
+kubectl apply -f $TEMPLATE_DIRNAME/volumes.yaml
 kubectl apply -f $BUILD_DIRNAME/airflow.yaml
 
 dump_logs() {
@@ -197,12 +191,12 @@ else
 fi
 
 # Wait until Airflow webserver is up
-MINIKUBE_IP=$(minikube ip)
+KUBERNETES_HOST=kubernetes
 AIRFLOW_WEBSERVER_IS_READY=0
 CONSECUTIVE_SUCCESS_CALLS=0
 for i in {1..30}
 do
-  HTTP_CODE=$(curl -LI http://${MINIKUBE_IP}:30809/health -o /dev/null -w '%{http_code}\n' -sS) || true
+  HTTP_CODE=$(curl -LI http://${KUBERNETES_HOST}:30809/health -o /dev/null -w '%{http_code}\n' -sS) || true
   if [[ "$HTTP_CODE" == 200 ]]; then
     let "CONSECUTIVE_SUCCESS_CALLS+=1"
   else

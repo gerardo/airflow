@@ -34,16 +34,16 @@ except Exception as e:
         raise e
     else:
         raise unittest.SkipTest(
-            "Kubernetes integration tests require a minikube cluster;"
+            "Kubernetes integration tests require a Kubernetes cluster;"
             "Skipping tests {}".format(e)
         )
 
 
-def get_minikube_host():
-    if "MINIKUBE_IP" in os.environ:
-        host_ip = os.environ['MINIKUBE_IP']
+def get_kubernetes_host():
+    if "KUBERNETES_HOST" in os.environ:
+        host_ip = os.environ['KUBERNETES_HOST']
     else:
-        host_ip = check_output(['/usr/local/bin/minikube', 'ip']).decode('UTF-8')
+        host_ip = 'kubernetes'
 
     host = '{}:30809'.format(host_ip.strip())
     return host
@@ -56,7 +56,7 @@ class KubernetesExecutorTest(unittest.TestCase):
         air_pod = air_pod.split('\n')
         names = [re.compile(r'\s+').split(x)[0] for x in air_pod if 'airflow' in x]
         if names:
-            check_call(['kubectl', 'delete', 'pod', names[0]])
+            check_call(['kubectl', 'delete', 'pod', '--force', '--grace-period=0', names[0]])
 
     def _get_session_with_retries(self):
         session = requests.Session()
@@ -67,7 +67,7 @@ class KubernetesExecutorTest(unittest.TestCase):
 
     def _ensure_airflow_webserver_is_healthy(self):
         response = self.session.get(
-            "http://{host}/health".format(host=get_minikube_host()),
+            "http://{host}/health".format(host=get_kubernetes_host()),
             timeout=1,
         )
 
@@ -188,7 +188,7 @@ class KubernetesExecutorTest(unittest.TestCase):
         return result_json
 
     def test_integration_run_dag(self):
-        host = get_minikube_host()
+        host = get_kubernetes_host()
         dag_id = 'example_kubernetes_executor_config'
 
         result_json = self.start_dag(dag_id=dag_id, host=host)
@@ -211,7 +211,7 @@ class KubernetesExecutorTest(unittest.TestCase):
                                        expected_final_state='success', timeout=100)
 
     def test_integration_run_dag_with_scheduler_failure(self):
-        host = get_minikube_host()
+        host = get_kubernetes_host()
         dag_id = 'example_kubernetes_executor_config'
 
         result_json = self.start_dag(dag_id=dag_id, host=host)

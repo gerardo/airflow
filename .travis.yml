@@ -26,10 +26,10 @@ env:
     - CASS_DRIVER_BUILD_CONCURRENCY=8
     - CASS_DRIVER_NO_CYTHON=1
   matrix:
-    - TOX_ENV=py35-backend_mysql-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_sqlite-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_postgres-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.13.0 PYTHON_VERSION=3
+    - TOX_ENV=py35-backend_mysql-env_docker
+    - TOX_ENV=py35-backend_sqlite-env_docker
+    - TOX_ENV=py35-backend_postgres-env_docker
+    - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.14.2
 
 stages:
   - pre-test
@@ -67,28 +67,10 @@ cache:
     - $HOME/.wheelhouse/
     - $HOME/.cache/pip
     - $HOME/.travis_cache/
-before_install:
-  # Required for K8s v1.10.x. See
-  # https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then sudo mount --make-shared / && sudo service docker restart; fi
 install:
   - pip install --upgrade pip
   - docker-compose -f scripts/ci/docker-compose.yml pull --quiet
 script:
-  - if [ -z "$KUBERNETES_VERSION" ]; then
-      docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh;
-    fi
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then
-      ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
-      ./scripts/ci/kubernetes/setup_kubernetes.sh &&
-      ./scripts/ci/kubernetes/kube/deploy.sh -d persistent_mode &&
-      MINIKUBE_IP=$(minikube ip) docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml -f scripts/ci/docker-compose-kubernetes.yml run airflow-testing /app/scripts/ci/run-ci.sh;
-    fi
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then
-      ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
-      ./scripts/ci/kubernetes/setup_kubernetes.sh &&
-      ./scripts/ci/kubernetes/kube/deploy.sh -d git_mode &&
-      MINIKUBE_IP=$(minikube ip) docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml -f scripts/ci/docker-compose-kubernetes.yml run airflow-testing /app/scripts/ci/run-ci.sh;
-    fi
+  docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh;
 before_cache:
   - sudo chown -R travis:travis $HOME/.cache/pip $HOME/.wheelhouse/

@@ -32,7 +32,7 @@ pwd
 
 echo "Using travis airflow.cfg"
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cp -f ${DIR}/airflow_travis.cfg ~/unittests.cfg
+cp -f "${DIR}/airflow_travis.cfg" ~/unittests.cfg
 
 ROOTDIR="$(dirname $(dirname $DIR))"
 export AIRFLOW__CORE__DAGS_FOLDER="$ROOTDIR/tests/dags"
@@ -40,14 +40,11 @@ export AIRFLOW__CORE__DAGS_FOLDER="$ROOTDIR/tests/dags"
 # add test/contrib to PYTHONPATH
 export PYTHONPATH=${PYTHONPATH:-$ROOTDIR/tests/test_utils}
 
-echo Backend: $AIRFLOW__CORE__SQL_ALCHEMY_CONN
+echo "Backend: $AIRFLOW__CORE__SQL_ALCHEMY_CONN"
 
 # environment
 export AIRFLOW_HOME=${AIRFLOW_HOME:=~}
 export AIRFLOW__CORE__UNIT_TEST_MODE=True
-
-# any argument received is overriding the default nose execution arguments:
-nose_args=$@
 
 # Generate the `airflow` executable if needed
 which airflow > /dev/null || python setup.py develop
@@ -59,31 +56,16 @@ sudo ln -sf "${VIRTUAL_ENV}/bin/airflow" /usr/local/bin/
 # Fix codecov build path
 if [ ! -h /home/travis/build/apache/airflow ]; then
   sudo mkdir -p /home/travis/build/apache
-  sudo ln -s ${ROOTDIR} /home/travis/build/apache/airflow
+  sudo ln -s "${ROOTDIR}" /home/travis/build/apache/airflow
 fi
 
 if [ -z "$KUBERNETES_VERSION" ]; then
   echo "Initializing the DB"
   yes | airflow initdb
   yes | airflow resetdb
-fi
-
-if [ -z "$nose_args" ]; then
-  nose_args="--with-coverage \
-  --cover-erase \
-  --cover-html \
-  --cover-package=airflow \
-  --cover-html-dir=airflow/www/static/coverage \
-  --with-ignore-docstrings \
-  --rednose \
-  --with-timer \
-  -v \
-  --logging-level=INFO"
-fi
-
-if [ -z "$KUBERNETES_VERSION" ]; then
   # kdc init happens in setup_kdc.sh
-  kinit -kt ${KRB5_KTNAME} airflow
+  echo "Initializing Kerberos"
+  kinit -kt "${KRB5_KTNAME}" airflow
 fi
 
 # For impersonation tests running on SQLite on Travis, make the database world readable so other
@@ -95,8 +77,24 @@ if [ -f "${AIRFLOW_DB}" ]; then
   chmod g+rwx "${AIRFLOW_HOME}"
 fi
 
-echo "Starting the unit tests with the following nose arguments: "$nose_args
-nosetests $nose_args
+# any argument received is overriding the default nose execution arguments:
+NOSE_ARGS="$@"
+
+if [ -z "$NOSE_ARGS" ]; then
+  NOSE_ARGS=("--with-coverage"
+            "--cover-erase"
+            "--cover-html"
+            "--cover-package=airflow"
+            "--cover-html-dir=airflow/www/static/coverage"
+            "--with-ignore-docstrings"
+            "--rednose"
+            "--with-timer"
+            "-v"
+            "--logging-level=INFO")
+fi
+
+echo "Starting the unit tests with the following nose arguments:" "${NOSE_ARGS[@]}"
+nosetests ${NOSE_ARGS[@]}
 
 # To run individual tests:
 # nosetests tests.core:CoreTest.test_scheduler_job

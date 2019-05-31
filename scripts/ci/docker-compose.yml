@@ -66,6 +66,10 @@ services:
     hostname: krb5-kdc-server
     domainname: example.com
 
+  kubernetes:
+    image: bsycorp/kind:v1.14.2
+    privileged: true
+
   airflow-testing:
     image: airflowci/incubator-airflow-ci:latest
     init: true
@@ -85,6 +89,8 @@ services:
       - TRAVIS_REPO_SLUG
       - TRAVIS_OS_NAME
       - TRAVIS_TAG
+      - KUBERNETES_VERSION
+      - KUBERNETES_HOST
     depends_on:
       - postgres
       - mysql
@@ -94,6 +100,7 @@ services:
       - redis
       - openldap
       - krb5-kdc-server
+      - kubernetes
     volumes:
       - ../../:/app
       - ~/.cache/pip:/home/airflow/.cache/pip

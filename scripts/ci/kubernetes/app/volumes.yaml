@@ -16,7 +16,6 @@
 #  under the License.                                           *
 
 # The backing volume can be anything you want, it just needs to be `ReadWriteOnce`
-# I'm using hostPath since minikube is nice for testing, but any (non-local) volume will work on a real cluster
 kind: PersistentVolume
 apiVersion: v1
 metadata:
