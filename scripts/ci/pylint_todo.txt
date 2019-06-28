@@ -587,8 +587,8 @@
 ./tests/lineage/backend/test_atlas.py
 ./tests/lineage/test_lineage.py
 ./tests/macros/test_hive.py
-./tests/minikube/test_kubernetes_executor.py
-./tests/minikube/test_kubernetes_pod_operator.py
+./tests/integration/kubernetes/test_kubernetes_executor.py
+./tests/integration/kubernetes/test_kubernetes_pod_operator.py
 ./tests/models/test_cleartasks.py
 ./tests/models/test_dag.py
 ./tests/models/test_dagbag.py
